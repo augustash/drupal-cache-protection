@@ -1,0 +1,5 @@
+drupal_cache_protection_facets.settings:
+  title: 'Facet Protection'
+  description: 'Configure facet throttling and rate limiting.'
+  route_name: drupal_cache_protection_facets.settings
+  parent: drupal_cache_protection.settings

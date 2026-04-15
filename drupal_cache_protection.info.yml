@@ -1,0 +1,5 @@
+name: 'Cache Protection'
+description: 'Protects page cache from fragmentation by stripping tracking parameters and redirecting cache-busting URLs.'
+type: module
+core_version_requirement: ^10 || ^11
+configure: drupal_cache_protection.settings

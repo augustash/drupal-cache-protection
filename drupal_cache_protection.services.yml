@@ -1,0 +1,5 @@
+services:
+  http_middleware.drupal_cache_protection:
+    class: Drupal\drupal_cache_protection\Middleware\CacheProtectionMiddleware
+    tags:
+      - { name: http_middleware, priority: 290 }

@@ -1,0 +1,7 @@
+drupal_cache_protection.settings:
+  path: '/admin/config/search/cache-protection'
+  defaults:
+    _form: '\Drupal\drupal_cache_protection\Form\SettingsForm'
+    _title: 'Cache Protection'
+  requirements:
+    _permission: 'administer site configuration'

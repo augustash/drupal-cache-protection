@@ -1,0 +1,5 @@
+drupal_cache_protection.settings:
+  title: 'Cache Protection'
+  description: 'Configure tracking parameter handling and cache protection.'
+  route_name: drupal_cache_protection.settings
+  parent: system.admin_config_search

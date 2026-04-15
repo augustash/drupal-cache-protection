@@ -1,0 +1,7 @@
+drupal_cache_protection_facets.settings:
+  path: '/admin/config/search/cache-protection/facets'
+  defaults:
+    _form: '\Drupal\drupal_cache_protection_facets\Form\FacetSettingsForm'
+    _title: 'Facet Protection'
+  requirements:
+    _permission: 'administer site configuration'

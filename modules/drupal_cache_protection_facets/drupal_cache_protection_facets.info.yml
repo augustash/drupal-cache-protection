@@ -1,0 +1,7 @@
+name: 'Cache Protection: Facets'
+description: 'Throttles abusive faceted search requests to prevent cache-busting bot traffic.'
+type: module
+core_version_requirement: ^10 || ^11
+dependencies:
+  - drupal_cache_protection:drupal_cache_protection
+configure: drupal_cache_protection_facets.settings

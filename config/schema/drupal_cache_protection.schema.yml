@@ -1,0 +1,16 @@
+drupal_cache_protection.settings:
+  type: config_object
+  label: 'Cache Protection settings'
+  mapping:
+    redirect_params:
+      type: sequence
+      label: 'Redirect parameters'
+      sequence:
+        type: string
+        label: 'Parameter name'
+    strip_params:
+      type: sequence
+      label: 'Strip parameters'
+      sequence:
+        type: string
+        label: 'Parameter name'

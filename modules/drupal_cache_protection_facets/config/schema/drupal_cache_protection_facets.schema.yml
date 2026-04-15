@@ -1,0 +1,13 @@
+drupal_cache_protection_facets.settings:
+  type: config_object
+  label: 'Facet Protection settings'
+  mapping:
+    max_facets:
+      type: integer
+      label: 'Maximum number of facet parameters per request'
+    rate_limit:
+      type: integer
+      label: 'Maximum faceted requests per IP within the window'
+    rate_window:
+      type: integer
+      label: 'Rate limit window in seconds'

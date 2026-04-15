@@ -1,0 +1,10 @@
+redirect_params:
+  - srsltid
+  - fbclid
+strip_params:
+  - gclid
+  - msclkid
+  - _kx
+  - gbraid
+  - gad_source
+  - gad_campaignid

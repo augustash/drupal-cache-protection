@@ -1,0 +1,21 @@
+{
+  "name": "augustash/drupal_cache_protection",
+  "description": "Protects Drupal page cache from fragmentation by tracking parameters and bot abuse",
+  "type": "drupal-custom-module",
+  "license": "proprietary",
+  "homepage": "https://github.com/augustash/drupal-cache-protection",
+  "authors": [
+    {
+      "name": "Kazajhodo",
+      "homepage": "https://www.augustash.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/augustash/drupal-cache-protection/issues",
+    "source": "https://github.com/augustash/drupal-cache-protection"
+  },
+  "minimum-stability": "dev",
+  "require": {
+    "drupal/core": "^10 || ^11"
+  }
+}

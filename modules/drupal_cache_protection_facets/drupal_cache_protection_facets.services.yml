@@ -1,0 +1,5 @@
+services:
+  http_middleware.drupal_cache_protection_facets:
+    class: Drupal\drupal_cache_protection_facets\Middleware\FacetThrottleMiddleware
+    tags:
+      - { name: http_middleware, priority: 289 }

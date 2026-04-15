@@ -1,0 +1,3 @@
+max_facets: 6
+rate_limit: 30
+rate_window: 60
