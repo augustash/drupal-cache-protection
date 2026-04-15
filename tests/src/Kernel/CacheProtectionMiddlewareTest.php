@@ -30,6 +30,7 @@ class CacheProtectionMiddlewareTest extends KernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    $this->installConfig(['drupal_cache_protection']);
 
     $innerKernel = new class implements HttpKernelInterface {
       public function handle(Request $request, int $type = self::MAIN_REQUEST, bool $catch = TRUE): Response {
