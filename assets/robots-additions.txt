@@ -1,0 +1,7 @@
+
+# Block AJAX endpoint from crawling. Drupal core's Views AJAX controller is an
+# internal callback; polite crawlers that index it only fragment the page cache
+# with no SEO value. The second rule covers language-prefixed paths
+# (/en/views/ajax, /de/views/ajax, etc.).
+Disallow: /views/ajax
+Disallow: /*/views/ajax

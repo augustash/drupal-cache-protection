@@ -17,5 +17,14 @@
   "minimum-stability": "dev",
   "require": {
     "drupal/core": "^10 || ^11"
+  },
+  "extra": {
+    "drupal-scaffold": {
+      "file-mapping": {
+        "[web-root]/robots.txt": {
+          "append": "assets/robots-additions.txt"
+        }
+      }
+    }
   }
 }
