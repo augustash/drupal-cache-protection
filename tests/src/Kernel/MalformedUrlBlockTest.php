@@ -102,6 +102,34 @@ class MalformedUrlBlockTest extends MiddlewareTestBase {
   }
 
   /**
+   * Tests that "amp%3B"-prefixed params trigger 410 Gone.
+   *
+   * Crawlers that parse "&amp;" literally from HTML re-request URLs with
+   * duplicate "amp;param=" entries alongside the real ones, fragmenting cache
+   * across infinite variants. No legitimate client produces this.
+   */
+  public function testAmpEntityBleedBlocked(): void {
+    $request = $this->rawUriRequest(
+      '/flights-and-airlines/flights',
+      'amp%3Border=city_airport&amp%3Bpage=3&flight_type=departure'
+    );
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(410, $response->getStatusCode());
+  }
+
+  /**
+   * Tests that "amp" without an encoded semicolon passes through.
+   *
+   * The block pattern is "amp%3B" specifically — params like "amplitude" or
+   * "ampm" must not be caught by an over-broad match.
+   */
+  public function testAmpWithoutSemicolonPassesThrough(): void {
+    $request = $this->rawUriRequest('/page', 'amplitude=10&ampm=AM');
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(200, $response->getStatusCode());
+  }
+
+  /**
    * Tests that the block takes priority over tracking-param handling.
    *
    * If both signatures appear on one request, the block is the more

@@ -25,14 +25,20 @@ class CacheProtectionMiddleware implements HttpKernelInterface {
   /**
    * Malformed-encoding signatures that indicate cache-busting abuse.
    *
-   * Double-encoded bracket characters (%5B/%5D → %255B/%255D) only appear when
-   * a client re-encodes an already-encoded URL. No legitimate browser or
-   * crawler produces these, and every unique variant creates a distinct cache
-   * entry. Matched case-insensitively via stripos().
+   * Two patterns, both produced only by broken clients:
+   * - Double-encoded brackets (%5B/%5D → %255B/%255D): a client re-encoded an
+   *   already-encoded URL.
+   * - "amp%3B" prefix: a crawler parsed "&amp;" literally out of HTML and
+   *   re-requested the URL, leaving duplicate "amp;param=" entries alongside
+   *   the real params.
+   *
+   * Every unique variant of either creates a distinct cache entry. Matched
+   * case-insensitively via stripos().
    */
   protected const BLOCK_SUBSTRINGS = [
     '%255B',
     '%255D',
+    'amp%3B',
   ];
 
   /**
