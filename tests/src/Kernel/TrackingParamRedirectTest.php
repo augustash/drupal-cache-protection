@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
  * on-site JS, so a 301 to the clean URL is safe and lets the CDN cache the
  * redirect itself.
  *
+ * @group aai
  * @group drupal_cache_protection
  */
 class TrackingParamRedirectTest extends MiddlewareTestBase {

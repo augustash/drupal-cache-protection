@@ -11,6 +11,7 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 /**
  * Tests the FacetThrottleMiddleware.
  *
+ * @group aai
  * @group drupal_cache_protection_facets
  */
 class FacetThrottleMiddlewareTest extends KernelTestBase {

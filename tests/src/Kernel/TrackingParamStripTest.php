@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
  * strips them only from Drupal's internal request so page cache keys on the
  * clean URL.
  *
+ * @group aai
  * @group drupal_cache_protection
  */
 class TrackingParamStripTest extends MiddlewareTestBase {

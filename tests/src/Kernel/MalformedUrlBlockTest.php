@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
  * legitimate client produces double-encoded brackets, so the middleware
  * returns a long-cacheable 410 before any Drupal bootstrap occurs.
  *
+ * @group aai
  * @group drupal_cache_protection
  */
 class MalformedUrlBlockTest extends MiddlewareTestBase {
