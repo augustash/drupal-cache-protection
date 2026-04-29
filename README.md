@@ -5,10 +5,8 @@ Protects Drupal page cache from fragmentation by tracking parameters and bot abu
 ## Install
 
 ```sh
-composer require augustash/drupal_cache_protection && drush en drupal_cache_protection
+ddev composer config --json --merge extra.drupal-scaffold.allowed-packages '["augustash/drupal_cache_protection"]' && ddev composer require augustash/drupal_cache_protection && ddev drush en -y drupal_cache_protection
 ```
-
-Then add `augustash/drupal_cache_protection` to `extra.drupal-scaffold.allowed-packages` in the project's root `composer.json` and run `composer drupal:scaffold` to apply the bundled `robots.txt` rules.
 
 ## Submodule
 
