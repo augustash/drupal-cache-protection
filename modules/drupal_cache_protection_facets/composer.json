@@ -1,7 +1,7 @@
 {
   "name": "augustash/drupal_cache_protection_facets",
   "description": "Facet throttling submodule for Cache Protection",
-  "type": "drupal-custom-module",
+  "type": "drupal-module",
   "license": "proprietary",
   "extra": {
     "drupal-scaffold": {
