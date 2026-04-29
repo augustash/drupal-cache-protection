@@ -44,6 +44,29 @@ class TrackingParamStripTest extends MiddlewareTestBase {
   }
 
   /**
+   * Tests that all UTM params are stripped from the internal request.
+   */
+  public function testUtmParamsStrippedInternally(): void {
+    $request = Request::create('/news', 'GET', [
+      'utm_source' => 'google',
+      'utm_medium' => 'cpc',
+      'utm_campaign' => 'spring',
+      'utm_term' => 'flights',
+      'utm_content' => 'cta-1',
+      'utm_id' => 'abc123',
+    ]);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertFalse($request->query->has('utm_source'));
+    $this->assertFalse($request->query->has('utm_medium'));
+    $this->assertFalse($request->query->has('utm_campaign'));
+    $this->assertFalse($request->query->has('utm_term'));
+    $this->assertFalse($request->query->has('utm_content'));
+    $this->assertFalse($request->query->has('utm_id'));
+    $this->assertStringNotContainsString('utm_', $request->server->get('REQUEST_URI'));
+  }
+
+  /**
    * Tests that strip preserves non-tracking query params.
    */
   public function testStripPreservesOtherParams(): void {

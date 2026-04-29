@@ -1,0 +1,28 @@
+<?php
+
+/**
+ * @file
+ * Install/update hooks for drupal_cache_protection.
+ */
+
+/**
+ * Add UTM parameters to strip_params.
+ */
+function drupal_cache_protection_update_10001(): string {
+  $config = \Drupal::configFactory()->getEditable('drupal_cache_protection.settings');
+  $current = $config->get('strip_params') ?? [];
+  $additions = [
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_term',
+    'utm_content',
+    'utm_id',
+  ];
+  $merged = array_values(array_unique(array_merge($current, $additions)));
+  if ($merged === $current) {
+    return 'UTM parameters already present in strip_params; no changes.';
+  }
+  $config->set('strip_params', $merged)->save();
+  return 'Added UTM parameters to strip_params.';
+}
