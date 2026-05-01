@@ -1,0 +1,28 @@
+drupal_cache_protection_search.settings:
+  type: config_object
+  label: 'Cache Protection: Search settings'
+  mapping:
+    protected_paths:
+      type: sequence
+      label: 'Paths to protect'
+      sequence:
+        type: string
+        label: 'Path'
+    query_params:
+      type: sequence
+      label: 'Query parameters that signal a search submission'
+      sequence:
+        type: string
+        label: 'Query parameter name'
+    burst_threshold:
+      type: integer
+      label: 'Burst threshold (requests)'
+    burst_window:
+      type: integer
+      label: 'Burst window (seconds)'
+    sustained_threshold:
+      type: integer
+      label: 'Sustained threshold (requests)'
+    sustained_window:
+      type: integer
+      label: 'Sustained window (seconds)'

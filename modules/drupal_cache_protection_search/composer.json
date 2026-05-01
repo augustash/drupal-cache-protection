@@ -1,0 +1,6 @@
+{
+  "name": "augustash/drupal_cache_protection_search",
+  "description": "Search throttling submodule for Cache Protection",
+  "type": "drupal-module",
+  "license": "proprietary"
+}

@@ -1,0 +1,5 @@
+drupal_cache_protection_search.settings:
+  title: 'Search Protection'
+  description: 'Configure rate limiting and cache protection for search routes.'
+  route_name: drupal_cache_protection_search.settings
+  parent: drupal_cache_protection.settings

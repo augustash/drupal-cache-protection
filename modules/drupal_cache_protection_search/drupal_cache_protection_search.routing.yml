@@ -1,0 +1,7 @@
+drupal_cache_protection_search.settings:
+  path: '/admin/config/search/cache-protection/search'
+  defaults:
+    _form: '\Drupal\drupal_cache_protection_search\Form\SettingsForm'
+    _title: 'Search Protection'
+  requirements:
+    _permission: 'administer site configuration'

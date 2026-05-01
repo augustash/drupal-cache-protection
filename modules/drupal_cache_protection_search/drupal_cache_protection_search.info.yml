@@ -1,0 +1,7 @@
+name: 'Cache Protection: Search'
+description: 'Per-IP rate limit and page-cache kill on search routes to prevent bot abuse from bloating cache_page and overloading Solr.'
+type: module
+core_version_requirement: ^10 || ^11
+dependencies:
+  - drupal_cache_protection:drupal_cache_protection
+configure: drupal_cache_protection_search.settings

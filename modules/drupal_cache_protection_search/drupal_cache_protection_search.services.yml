@@ -1,0 +1,6 @@
+services:
+  http_middleware.drupal_cache_protection_search:
+    class: Drupal\drupal_cache_protection_search\Middleware\SearchProtectionMiddleware
+    arguments: ['@flood', '@page_cache_kill_switch']
+    tags:
+      - { name: http_middleware, priority: 100 }

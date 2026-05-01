@@ -1,0 +1,10 @@
+protected_paths:
+  - /search
+query_params:
+  - s
+  - keys
+  - search_api_fulltext
+burst_threshold: 5
+burst_window: 60
+sustained_threshold: 30
+sustained_window: 3600
