@@ -10,7 +10,7 @@ ddev composer config --json --merge extra.drupal-scaffold.allowed-packages '["au
 
 ## Submodules
 
-Each submodule is opt-in. If enabled, also add its package to `allowed-packages`.
+Each submodule is opt-in.
 
 ### `drupal_cache_protection_facets`
 

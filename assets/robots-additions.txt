@@ -5,3 +5,13 @@
 # (/en/views/ajax, /de/views/ajax, etc.).
 Disallow: /views/ajax
 Disallow: /*/views/ajax
+
+# Block search routes from crawling. Search results pages are thin/duplicate
+# content that hurts SEO and creates a vector for bot abuse. Sites that want
+# search indexed can override with an Allow rule.
+Disallow: /search
+
+# Block faceted search URLs from crawling. Each unique facet combination is a
+# distinct URL that bots can multiply to fragment the cache.
+Disallow: /*?*f[0]=
+Disallow: /*?*f%5B0%5D=
