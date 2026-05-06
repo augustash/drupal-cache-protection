@@ -52,8 +52,13 @@ class SearchProtectionMiddleware implements HttpKernelInterface {
     [$burstThreshold, $burstWindow] = [(int) ($config['burst_threshold'] ?? 5), (int) ($config['burst_window'] ?? 60)];
     [$sustainedThreshold, $sustainedWindow] = [(int) ($config['sustained_threshold'] ?? 30), (int) ($config['sustained_window'] ?? 3600)];
 
-    $burstAllowed = $this->flood->isAllowed(self::FLOOD_BURST, $burstThreshold, $burstWindow);
-    $sustainedAllowed = $this->flood->isAllowed(self::FLOOD_SUSTAINED, $sustainedThreshold, $sustainedWindow);
+    // Middlewares run before the inner kernel pushes onto request_stack, so
+    // the flood backend's default identifier lookup (RequestStack::getCurrentRequest)
+    // returns null. Pass the IP explicitly from the request we already have.
+    $ip = $request->getClientIp();
+
+    $burstAllowed = $this->flood->isAllowed(self::FLOOD_BURST, $burstThreshold, $burstWindow, $ip);
+    $sustainedAllowed = $this->flood->isAllowed(self::FLOOD_SUSTAINED, $sustainedThreshold, $sustainedWindow, $ip);
 
     if (!$burstAllowed || !$sustainedAllowed) {
       $retryAfter = !$burstAllowed ? $burstWindow : $sustainedWindow;
@@ -63,8 +68,8 @@ class SearchProtectionMiddleware implements HttpKernelInterface {
       ]);
     }
 
-    $this->flood->register(self::FLOOD_BURST, $burstWindow);
-    $this->flood->register(self::FLOOD_SUSTAINED, $sustainedWindow);
+    $this->flood->register(self::FLOOD_BURST, $burstWindow, $ip);
+    $this->flood->register(self::FLOOD_SUSTAINED, $sustainedWindow, $ip);
 
     // Prevent Drupal from caching this response. Each unique query string
     // would create its own cache row otherwise — that is exactly the bloat

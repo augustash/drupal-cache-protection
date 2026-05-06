@@ -7,6 +7,8 @@ use Drupal\drupal_cache_protection_search\Middleware\SearchProtectionMiddleware;
 use Drupal\KernelTests\KernelTestBase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
@@ -125,6 +127,35 @@ class SearchProtectionMiddlewareTest extends KernelTestBase {
       $this->assertEquals(200, $response->getStatusCode());
     }
     $this->assertEquals(6, $this->innerCalls);
+  }
+
+  /**
+   * Regression: middleware must not depend on request_stack being populated.
+   *
+   * Drupal runs middlewares outside the inner HttpKernel — request_stack only
+   * receives the request once that inner kernel starts handling. Any lazy
+   * lookup of the current request from inside a middleware (e.g. the flood
+   * backend's default identifier resolution) blows up on null. The middleware
+   * must pass the IP through explicitly so it never depends on request_stack.
+   */
+  public function testHandlesEmptyRequestStack(): void {
+    $stack = $this->container->get('request_stack');
+    while ($stack->getCurrentRequest()) {
+      $stack->pop();
+    }
+    $this->assertNull($stack->getCurrentRequest());
+
+    $request = Request::create('/search', 'GET', ['s' => 'flights']);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertEquals(1, $this->innerCalls);
+
+    // KernelTestBase::tearDown() calls request_stack->getSession(). Restore a
+    // session-bearing request so teardown does not emit Drupal's session-less
+    // push deprecation.
+    $cleanup = Request::create('/');
+    $cleanup->setSession(new Session(new MockArraySessionStorage()));
+    $stack->push($cleanup);
   }
 
 }
