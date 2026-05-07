@@ -15,3 +15,21 @@ Disallow: /search
 # distinct URL that bots can multiply to fragment the cache.
 Disallow: /*?*f[0]=
 Disallow: /*?*f%5B0%5D=
+
+# Throttle AhrefsSiteAudit. Observed in the wild driving a 5-hour 499/502
+# cascade by hammering uncacheable form pages with a distributed crawler swarm.
+# Crawl-delay is interpreted per-bot, so 60s × ~30 concurrent crawlers caps
+# aggregate near 0.5 req/sec — enough headroom for Pantheon's PHP workers.
+# Real-time AhrefsBot (search index crawler) is intentionally not throttled.
+# To run a legitimate site audit, raise the delay or remove this block.
+User-agent: AhrefsSiteAudit
+Crawl-delay: 60
+
+# Block IbouBot. Self-identifying scraper with no SEO value, observed
+# hammering form/auth pages.
+User-agent: IbouBot
+Disallow: /
+
+# Reset to wildcard so any subsequent appends (e.g. site-level robots-additions)
+# inherit User-agent: * cleanly instead of attaching to the last UA above.
+User-agent: *
