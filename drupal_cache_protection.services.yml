@@ -3,3 +3,25 @@ services:
     class: Drupal\drupal_cache_protection\Middleware\CacheProtectionMiddleware
     tags:
       - { name: http_middleware, priority: 290 }
+
+  drupal_cache_protection.warmer.capabilities:
+    class: Drupal\drupal_cache_protection\Warmer\CapabilityDetector
+    arguments:
+      - '%app.root%'
+
+  drupal_cache_protection.warmer.probe:
+    class: Drupal\drupal_cache_protection\Warmer\SurvivalProbe
+    arguments:
+      - '@state'
+      - '@file_system'
+      - '@drupal_cache_protection.warmer.capabilities'
+
+  drupal_cache_protection.warmer:
+    class: Drupal\drupal_cache_protection\Warmer\CacheWarmer
+    arguments:
+      - '@?cache_prewarmer'
+      - '@state'
+      - '@drupal_cache_protection.warmer.capabilities'
+      - '@drupal_cache_protection.warmer.probe'
+      - '@request_stack'
+      - '%app.root%'

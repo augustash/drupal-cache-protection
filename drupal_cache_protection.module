@@ -1,0 +1,46 @@
+<?php
+
+/**
+ * @file
+ * Drupal Cache Protection — runtime hooks.
+ *
+ * The Warmer subsystem hooks rebuild + cron here; other concerns (the
+ * tracking-param middleware, settings form) are wired up via services
+ * and routing and don't need procedural hooks.
+ *
+ * Hook bodies catch Throwable so a warmer fault never propagates out
+ * of a cache flush or cron tick. Diagnostic state is surfaced via
+ * hook_requirements() rather than the watchdog log.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_rebuild().
+ *
+ * Fires at the end of drupal_flush_all_caches(). Delegates the warm to
+ * the current warmer strategy, which decides how to defer the actual
+ * work (post-response, detached drush spawn, or inline).
+ */
+function drupal_cache_protection_rebuild(): void {
+  try {
+    \Drupal::service('drupal_cache_protection.warmer')->warm();
+  }
+  catch (\Throwable) {
+  }
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Drives the asynchronous survival probe: spawns on the appropriate
+ * cron tick, checks pending results on the next tick, updates the
+ * persisted strategy selection in response.
+ */
+function drupal_cache_protection_cron(): void {
+  try {
+    \Drupal::service('drupal_cache_protection.warmer')->maintainProbe();
+  }
+  catch (\Throwable) {
+  }
+}

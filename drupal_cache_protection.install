@@ -2,8 +2,58 @@
 
 /**
  * @file
- * Install/update hooks for drupal_cache_protection.
+ * Install / update / requirements hooks for drupal_cache_protection.
  */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_install().
+ *
+ * Initializes the warmer subsystem: snapshot host capabilities, set the
+ * default strategy (post_response if prewarming is available, disabled
+ * otherwise), and clear any prior probe record. The survival probe
+ * itself runs asynchronously on the next cron tick.
+ */
+function drupal_cache_protection_install(): void {
+  \Drupal::service('drupal_cache_protection.warmer')->reset();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function drupal_cache_protection_uninstall(): void {
+  $state = \Drupal::state();
+  $state->delete('drupal_cache_protection.warmer.strategy');
+  $state->delete('drupal_cache_protection.warmer.capabilities');
+  $state->delete('drupal_cache_protection.warmer.probe');
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function drupal_cache_protection_requirements(string $phase): array {
+  if ($phase !== 'runtime') {
+    return [];
+  }
+  if (!\Drupal::hasService('drupal_cache_protection.warmer')) {
+    return [];
+  }
+
+  $requirements = \Drupal::service('drupal_cache_protection.warmer')->getRequirements();
+  $severityMap = [
+    'ok' => REQUIREMENT_OK,
+    'warning' => REQUIREMENT_WARNING,
+    'error' => REQUIREMENT_ERROR,
+    'info' => REQUIREMENT_INFO,
+  ];
+  foreach ($requirements as &$req) {
+    if (isset($req['severity']) && is_string($req['severity'])) {
+      $req['severity'] = $severityMap[$req['severity']] ?? REQUIREMENT_INFO;
+    }
+  }
+  return $requirements;
+}
 
 /**
  * Add UTM parameters to strip_params.
