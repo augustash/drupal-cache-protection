@@ -30,6 +30,26 @@ Crawl-delay: 60
 User-agent: IbouBot
 Disallow: /
 
+# Block YisouSpider. Shenma/Yisou's mobile search crawler — observed driving
+# 28% of total request volume on a US augustash site (MSP, May 2026) with
+# no measurable organic referrals. Yisou is a Chinese mobile search engine
+# dwarfed by Baidu even in its home market; US sites with no Chinese-specific
+# content get the load with none of the benefit. Worst hit-to-value ratio
+# observed in the wild.
+User-agent: YisouSpider
+Disallow: /
+
+# Block Barkrowler. Babbar.tech's backlink/SEO analysis crawler — useful
+# only if running an active Babbar audit, which augustash sites generally
+# are not. Observed driving ~3% of traffic with no SEO benefit.
+User-agent: Barkrowler
+Disallow: /
+
+# Block SleepBot. Self-identifying as "SleepBot" with no documented owner
+# or purpose. Observed driving ~1% of traffic with no organic referrals.
+User-agent: SleepBot
+Disallow: /
+
 # Reset to wildcard so any subsequent appends (e.g. site-level robots-additions)
 # inherit User-agent: * cleanly instead of attaching to the last UA above.
 User-agent: *
