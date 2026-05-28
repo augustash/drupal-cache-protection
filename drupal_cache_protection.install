@@ -76,3 +76,50 @@ function drupal_cache_protection_update_10001(): string {
   $config->set('strip_params', $merged)->save();
   return 'Added UTM parameters to strip_params.';
 }
+
+/**
+ * Add ttclid (TikTok click ID) to strip_params.
+ */
+function drupal_cache_protection_update_10002(): string {
+  $config = \Drupal::configFactory()->getEditable('drupal_cache_protection.settings');
+  $current = $config->get('strip_params') ?? [];
+  if (in_array('ttclid', $current, TRUE)) {
+    return 'ttclid already present in strip_params; no changes.';
+  }
+  $config->set('strip_params', array_merge($current, ['ttclid']))->save();
+  return 'Added ttclid to strip_params.';
+}
+
+/**
+ * Backfill HubSpot tracking params into strip_params.
+ *
+ * These shipped in the default config but never had an update hook, so sites
+ * installed before they were added are missing them.
+ */
+function drupal_cache_protection_update_10003(): string {
+  $config = \Drupal::configFactory()->getEditable('drupal_cache_protection.settings');
+  $current = $config->get('strip_params') ?? [];
+  $additions = [
+    'hsa_acc',
+    'hsa_cam',
+    'hsa_grp',
+    'hsa_ad',
+    'hsa_kw',
+    'hsa_mt',
+    'hsa_net',
+    'hsa_src',
+    'hsa_tgt',
+    'hsa_ver',
+    '_hsmi',
+    '_hsenc',
+    '__hstc',
+    '__hssc',
+    '__hsfp',
+  ];
+  $merged = array_values(array_unique(array_merge($current, $additions)));
+  if ($merged === $current) {
+    return 'HubSpot parameters already present in strip_params; no changes.';
+  }
+  $config->set('strip_params', $merged)->save();
+  return 'Added HubSpot parameters to strip_params.';
+}
