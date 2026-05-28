@@ -8,6 +8,7 @@ strip_params:
   - gbraid
   - gad_source
   - gad_campaignid
+  - ttclid
   - utm_source
   - utm_medium
   - utm_campaign

@@ -44,6 +44,19 @@ class TrackingParamStripTest extends MiddlewareTestBase {
   }
 
   /**
+   * Tests that ttclid is stripped from the internal request.
+   */
+  public function testTtclidStrippedInternally(): void {
+    $request = Request::create('/staff-directory', 'GET', [
+      'ttclid' => 'ghi789',
+    ]);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(200, $response->getStatusCode());
+    $this->assertFalse($request->query->has('ttclid'));
+    $this->assertStringNotContainsString('ttclid', $request->server->get('REQUEST_URI'));
+  }
+
+  /**
    * Tests that all UTM params are stripped from the internal request.
    */
   public function testUtmParamsStrippedInternally(): void {
