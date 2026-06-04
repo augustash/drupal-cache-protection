@@ -184,9 +184,15 @@ class CacheWarmerTest extends KernelTestBase {
   }
 
   private function buildWarmer(): CacheWarmer {
-    $prewarmer = $this->container->has('cache_prewarmer')
-      ? $this->container->get('cache_prewarmer')
-      : NULL;
+    // The post_response/detached state machine is only reachable when core
+    // provides cache_prewarmer (Drupal >= 11.2). On older core the warmer
+    // parks at 'disabled' by design, and CachePreWarmerInterface doesn't
+    // exist to stub — so these tests have nothing to exercise. The disabled
+    // path is covered separately by testDisabledStrategyWhenPrewarmerUnavailable().
+    if (!$this->container->has('cache_prewarmer')) {
+      $this->markTestSkipped('Requires the core cache_prewarmer service (Drupal >= 11.2).');
+    }
+    $prewarmer = $this->container->get('cache_prewarmer');
     return $this->constructWarmer($prewarmer);
   }
 
