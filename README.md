@@ -44,7 +44,13 @@ It reads as a content or search-index bug, not a caching one, because the listin
 - On completion, invalidates `rendered` once. That's the only tag that reaches a poisoned page: an empty listing carries no entity tags precisely because it rendered no entities.
 - An abandoned rebuild stops suppressing the cache after an hour and logs a warning; the status report flags it before that.
 
-A cron check covers grants emptied by something the decorator can't see — a hand-run `TRUNCATE node_access`, or a database import carrying a table that was empty when it was dumped (Pantheon's env clone makes that plausible). If `{node_access}` is empty while published nodes exist and a `hook_node_grants` module is active, that state is impossible: it logs an error, opens the guard so nothing further caches empty, and flags the rebuild for the status report. Turns "stuck until a human notices" into "self-heals within a cron cycle" — the rebuild itself still needs running by hand, deliberately, since an unattended rebuild on a large site is its own hazard.
+A cron check covers grants emptied by something the decorator can't see — a hand-run `TRUNCATE node_access`, or a database import carrying a table that was empty when it was dumped (Pantheon's env clone makes that plausible). If `{node_access}` is empty while published nodes exist and a `hook_node_grants` module is active, that state is impossible, so cron **repairs it**: opens the guard, runs `node_access_rebuild()`, purges, and resumes caching — all inside the one run.
+
+Rebuilding costs a cold cache for a few minutes. Not rebuilding costs missing content until somebody notices, which could be days. A slow page beats absent content, and it doesn't need anyone to show up.
+
+- It doesn't purge *before* the rebuild — only after. Cache **hits keep serving** through the window (the kill switch prevents storing, not serving), so pages cached before the table was emptied go on serving correct content, and purging early would only push visitors onto the render path while it's still broken.
+- Bounded at 3 consecutive incomplete rebuilds. A site large enough that the rebuild can't finish inside a cron run would otherwise truncate and half-refill on every tick forever; after the ceiling it stops, holds the guard, and says so on the status report. That's the only case that still needs a human, and then `drush php:eval 'node_access_rebuild();'` from the CLI isn't bound by a cron run.
+- The counter resets whenever the table is found healthy, so an old streak never counts against the next genuine incident.
 
 Nothing to configure.
 

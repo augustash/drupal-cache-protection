@@ -4,9 +4,11 @@ namespace Drupal\Tests\drupal_cache_protection_node_access\Kernel;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\drupal_cache_protection_node_access\GrantsSanityCheck;
 use Drupal\drupal_cache_protection_node_access\RebuildTracker;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
+use Drupal\user\Entity\User;
 
 /**
  * Tests detection of a grants table emptied outside the decorator.
@@ -37,6 +39,9 @@ class GrantsSanityCheckTest extends KernelTestBase {
     $this->installEntitySchema('user');
     $this->installEntitySchema('node');
     $this->installSchema('node', ['node_access']);
+    $this->installConfig(['user']);
+    // Grants are checked against a real account, so uid 0 has to exist.
+    User::create(['uid' => 0, 'name' => '', 'status' => 0])->save();
     NodeType::create(['type' => 'page', 'name' => 'Page'])->save();
   }
 
@@ -53,16 +58,139 @@ class GrantsSanityCheckTest extends KernelTestBase {
 
     $this->runCheck();
 
+    $this->assertGreaterThan(
+      0,
+      (int) $this->container->get('node.grant_storage')->count(),
+      'Grants were rebuilt without waiting for a human.'
+    );
+    $this->assertNull(
+      $this->container->get('state')->get(RebuildTracker::STATE_KEY),
+      'The window closed in the same run, so caching resumed immediately.'
+    );
+    $this->assertFalse($this->container->get('drupal_cache_protection_node_access.rebuild_tracker')->isRebuilding());
+    $this->assertNull(
+      $this->getRenderedEntry('poisoned'),
+      'Anything cached while grants were missing was purged, now that purging re-renders correctly.'
+    );
+  }
+
+  /**
+   * The published node is visible again afterwards — the point of the exercise.
+   */
+  public function testRepairRestoresAnonymousAccess(): void {
+    $node = $this->createPublishedNode();
+    $this->truncateGrantsBehindTheDecorator();
+
+    $anonymous = $this->container->get('entity_type.manager')->getStorage('user')->load(0);
+    $this->assertFalse(
+      $this->container->get('node.grant_storage')->access($node, 'view', $anonymous)->isAllowed(),
+      'Precondition: with grants gone, anonymous cannot see the node.'
+    );
+
+    $this->runCheck();
+
+    $this->assertTrue(
+      $this->container->get('node.grant_storage')->access($node, 'view', $anonymous)->isAllowed(),
+      'After the automatic repair the node is visible to anonymous again.'
+    );
+  }
+
+  /**
+   * A rebuild that never completes is retried, then abandoned loudly.
+   *
+   * Without the ceiling a site too large to finish inside a cron run would
+   * truncate and half-refill on every tick, forever.
+   */
+  public function testRepairGivesUpAfterRepeatedFailures(): void {
+    $this->createPublishedNode();
+    $this->truncateGrantsBehindTheDecorator();
+    $this->container->get('state')->set(GrantsSanityCheck::ATTEMPTS_KEY, GrantsSanityCheck::MAX_ATTEMPTS);
+
+    $this->runCheck();
+
+    $this->assertSame(
+      0,
+      (int) $this->container->get('node.grant_storage')->count(),
+      'No further rebuild was attempted.'
+    );
     $this->assertNotNull(
       $this->container->get('state')->get(RebuildTracker::STATE_KEY),
-      'The guard was opened, so nothing further gets cached empty.'
+      'The guard keeps holding, so the site still never caches an empty listing.'
+    );
+  }
+
+  /**
+   * A half-filled table is repaired, not mistaken for a healthy one.
+   *
+   * Row count alone can't tell "populated" from "partially populated", so a
+   * rebuild that died midway would otherwise look fine and the site would
+   * settle into serving a subset of its content.
+   */
+  public function testPartiallyPopulatedTableIsRebuilt(): void {
+    $visible = $this->createPublishedNode();
+    $orphaned = $this->createPublishedNode();
+    $this->container->get('node.grant_storage')->deleteNodeRecords([$orphaned->id()]);
+
+    // The fingerprint of a repair that started and never reported completion.
+    $this->container->get('state')->set(GrantsSanityCheck::ATTEMPTS_KEY, 1);
+    $this->container->get('state')->set(RebuildTracker::CORE_STATE_KEY, TRUE);
+
+    $anonymous = $this->container->get('entity_type.manager')->getStorage('user')->load(0);
+    $this->assertFalse(
+      $this->container->get('node.grant_storage')->access($orphaned, 'view', $anonymous)->isAllowed(),
+      'Precondition: the orphaned node is invisible while its grant row is missing.'
+    );
+
+    $this->runCheck();
+
+    $this->assertTrue(
+      $this->container->get('node.grant_storage')->access($orphaned, 'view', $anonymous)->isAllowed(),
+      'The missing grant was restored.'
     );
     $this->assertTrue(
-      (bool) $this->container->get('state')->get(RebuildTracker::CORE_STATE_KEY),
-      'A rebuild was flagged for the status report.'
+      $this->container->get('node.grant_storage')->access($visible, 'view', $anonymous)->isAllowed(),
+      'The node that was already fine stayed fine.'
     );
-    $this->assertNull($this->getRenderedEntry('poisoned'), 'Already-poisoned renders were dropped.');
-    $this->assertTrue($this->container->get('drupal_cache_protection_node_access.rebuild_tracker')->isRebuilding());
+    $this->assertNull($this->container->get('state')->get(GrantsSanityCheck::ATTEMPTS_KEY));
+  }
+
+  /**
+   * A human who rebuilt in the meantime is not second-guessed.
+   *
+   * Core clears its flag on a completed rebuild, so an outstanding attempt
+   * without that flag means somebody already fixed it — no redundant rebuild,
+   * and no redundant cache purge.
+   */
+  public function testManualRebuildIsRecognisedAndNotRedone(): void {
+    $this->createPublishedNode();
+    $orphaned = $this->createPublishedNode();
+    $this->container->get('node.grant_storage')->deleteNodeRecords([$orphaned->id()]);
+    $this->container->get('state')->set(GrantsSanityCheck::ATTEMPTS_KEY, 1);
+    $this->container->get('state')->delete(RebuildTracker::CORE_STATE_KEY);
+
+    $this->runCheck();
+
+    $anonymous = $this->container->get('entity_type.manager')->getStorage('user')->load(0);
+    $this->assertFalse(
+      $this->container->get('node.grant_storage')->access($orphaned, 'view', $anonymous)->isAllowed(),
+      'No rebuild ran — the deliberately missing row is still missing.'
+    );
+    $this->assertNull($this->container->get('state')->get(GrantsSanityCheck::ATTEMPTS_KEY));
+  }
+
+  /**
+   * A healthy table resets the failure streak.
+   */
+  public function testHealthyGrantsClearTheAttemptCounter(): void {
+    $this->createPublishedNode();
+    $this->container->get('state')->set(GrantsSanityCheck::ATTEMPTS_KEY, 2);
+
+    $this->runCheck();
+
+    $this->assertNull(
+      $this->container->get('state')->get(GrantsSanityCheck::ATTEMPTS_KEY),
+      'A past streak must not count against the next genuine incident.'
+    );
   }
 
   /**
@@ -122,8 +250,10 @@ class GrantsSanityCheckTest extends KernelTestBase {
   /**
    * Creates a published node, which acquires its default grant on save.
    */
-  protected function createPublishedNode(): void {
-    Node::create(['type' => 'page', 'title' => 'Published', 'status' => 1])->save();
+  protected function createPublishedNode(): Node {
+    $node = Node::create(['type' => 'page', 'title' => 'Published', 'status' => 1]);
+    $node->save();
+    return $node;
   }
 
   /**

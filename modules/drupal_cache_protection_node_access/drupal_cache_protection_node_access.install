@@ -7,6 +7,7 @@
 
 declare(strict_types=1);
 
+use Drupal\drupal_cache_protection_node_access\GrantsSanityCheck;
 use Drupal\drupal_cache_protection_node_access\RebuildTracker;
 
 /**
@@ -14,6 +15,7 @@ use Drupal\drupal_cache_protection_node_access\RebuildTracker;
  */
 function drupal_cache_protection_node_access_uninstall(): void {
   \Drupal::state()->delete(RebuildTracker::STATE_KEY);
+  \Drupal::state()->delete(GrantsSanityCheck::ATTEMPTS_KEY);
 }
 
 /**
@@ -42,10 +44,22 @@ function drupal_cache_protection_node_access_requirements(string $phase): array 
   }
 
   $elapsed = \Drupal::time()->getRequestTime() - (int) $startedAt;
+  $attempts = (int) \Drupal::state()->get(GrantsSanityCheck::ATTEMPTS_KEY, 0);
+
+  if ($attempts >= GrantsSanityCheck::MAX_ATTEMPTS) {
+    $requirements['drupal_cache_protection_node_access'] = [
+      'title' => t('Cache Protection: Node Access'),
+      'value' => t('Automatic grants rebuild gave up after @count attempts', ['@count' => $attempts]),
+      'description' => t('Cron could not finish rebuilding the node access grants, so page caching stays suspended and node listings render empty. Run <code>drush php:eval "node_access_rebuild();"</code> from the command line, where it is not bound by a cron run.'),
+      'severity' => REQUIREMENT_ERROR,
+    ];
+    return $requirements;
+  }
+
   $requirements['drupal_cache_protection_node_access'] = [
     'title' => t('Cache Protection: Node Access'),
     'value' => t('Grants rebuild in progress — page caching suppressed'),
-    'description' => t('A node access grants rebuild started @minutes minute(s) ago. Responses are not being cached until it finishes, so node listings cannot be stored while {node_access} is incomplete. If this persists, the rebuild was likely interrupted: re-run it with <code>drush php:eval "node_access_rebuild();"</code>.', [
+    'description' => t('A node access grants rebuild started @minutes minute(s) ago. Responses are not being cached until it finishes, so node listings cannot be stored while {node_access} is incomplete. If it was interrupted, the next cron run retries it automatically.', [
       '@minutes' => (int) floor($elapsed / 60),
     ]),
     'severity' => $elapsed > RebuildTracker::STALE_AFTER ? REQUIREMENT_ERROR : REQUIREMENT_WARNING,

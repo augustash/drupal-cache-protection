@@ -27,7 +27,7 @@ services:
       - '@entity_type.manager'
       - '@module_handler'
       - '@drupal_cache_protection_node_access.rebuild_tracker'
-      - '@cache_tags.invalidator'
+      - '@state'
       - '@logger.channel.drupal_cache_protection_node_access'
 
   drupal_cache_protection_node_access.rebuild_guard:

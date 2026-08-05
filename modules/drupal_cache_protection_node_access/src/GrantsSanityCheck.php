@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\drupal_cache_protection_node_access;
 
-use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\State\StateInterface;
 use Drupal\node\NodeGrantDatabaseStorageInterface;
 use Psr\Log\LoggerInterface;
 
@@ -27,12 +27,22 @@ use Psr\Log\LoggerInterface;
  */
 final class GrantsSanityCheck {
 
+  /**
+   * State key counting consecutive incomplete automatic rebuilds.
+   */
+  public const ATTEMPTS_KEY = 'drupal_cache_protection_node_access.repair_attempts';
+
+  /**
+   * How many times to attempt an automatic rebuild before giving up.
+   */
+  public const MAX_ATTEMPTS = 3;
+
   public function __construct(
     protected NodeGrantDatabaseStorageInterface $grantStorage,
     protected EntityTypeManagerInterface $entityTypeManager,
     protected ModuleHandlerInterface $moduleHandler,
     protected RebuildTracker $tracker,
-    protected CacheTagsInvalidatorInterface $cacheTagsInvalidator,
+    protected StateInterface $state,
     protected LoggerInterface $logger,
   ) {}
 
@@ -53,23 +63,94 @@ final class GrantsSanityCheck {
       return;
     }
 
-    if ((int) $this->grantStorage->count() > 0) {
+    $count = (int) $this->grantStorage->count();
+
+    // A repair we started but never confirmed leaves the table *partially*
+    // filled, which reads as healthy on row count alone — so the check would
+    // never retry, and the site would quietly settle into serving a subset of
+    // its content. An outstanding attempt with core's flag still set is that
+    // state: our rebuild never reached the line that clears it. A human who
+    // rebuilt in the meantime does clear it, so their fix is recognised and
+    // no redundant rebuild runs.
+    $incomplete = (int) $this->state->get(self::ATTEMPTS_KEY, 0) > 0
+      && (bool) $this->state->get(RebuildTracker::CORE_STATE_KEY, FALSE);
+
+    if ($count > 0 && !$incomplete) {
+      // Healthy — including after a manual rebuild, so a past failure streak
+      // must not count against the next genuine incident.
+      $this->state->delete(self::ATTEMPTS_KEY);
       return;
     }
 
     // A site with no published nodes has an empty grants table legitimately.
     if (!$this->hasPublishedNodes()) {
+      $this->state->delete(self::ATTEMPTS_KEY);
       return;
     }
 
-    $this->logger->error('The node access grants table is empty while published nodes exist. Listings will render empty for anonymous visitors. Page caching has been suspended and a grants rebuild flagged — run "drush php:eval \'node_access_rebuild();\'" to restore it.');
+    $this->logger->error($count === 0
+      ? 'The node access grants table is empty while published nodes exist — listings would render empty for anonymous visitors. Suspending page caching and rebuilding grants now.'
+      : 'A previous automatic grants rebuild never confirmed completion, so {node_access} may be partially populated (@count records) and some content invisible. Suspending page caching and rebuilding grants now.',
+      ['@count' => $count]);
 
-    // Open the window: this is exactly the state the guard was written for,
-    // and it also arms core's flag so the rebuild is surfaced on the status
-    // report. ::start() deliberately does not purge, so the invalidation below
-    // is not deduped away from the purge that ::settle() runs later.
+    // Open the window first, so that if the rebuild below dies partway the
+    // guard is already holding and nothing caches empty in the meantime.
+    //
+    // Nothing is purged here. The cache currently holds a mix of pages
+    // rendered before the table was emptied (correct, and the only thing still
+    // serving properly) and after (empty). Purging cannot tell them apart, and
+    // re-rendering a poisoned one just reproduces it while grants are still
+    // missing — so it gains nothing and costs the good ones. Cache *hits* keep
+    // serving throughout; the kill switch only prevents storing.
     $this->tracker->start();
-    $this->cacheTagsInvalidator->invalidateTags(['rendered']);
+
+    $this->repair();
+  }
+
+  /**
+   * Rebuilds the grants, which is the whole point of noticing.
+   *
+   * Logging and waiting for a human means the site serves empty listings until
+   * someone happens to look. A rebuild costs a cold cache for a few minutes;
+   * that is plainly the better trade, and it needs nobody to show up.
+   *
+   * Bounded because it is the one operation that could fail the same way every
+   * time: a site large enough that the rebuild cannot finish inside a cron run
+   * would otherwise truncate and half-refill the table on every tick forever.
+   * After MAX_ATTEMPTS it stops and says so, which is the only case that
+   * degrades to needing a human.
+   */
+  protected function repair(): void {
+    $attempts = (int) $this->state->get(self::ATTEMPTS_KEY, 0);
+    if ($attempts >= self::MAX_ATTEMPTS) {
+      $this->logger->error('Automatic grants rebuild has failed to complete @count times and will not be retried. Page caching stays suspended. Run "drush php:eval \'node_access_rebuild();\'" from the command line, where it is not bound by a cron run.', [
+        '@count' => $attempts,
+      ]);
+      return;
+    }
+    $this->state->set(self::ATTEMPTS_KEY, $attempts + 1);
+
+    // Core raises its own time limit and resets entity storage per node, so
+    // this is bounded in memory if not in wall clock. It truncates first,
+    // which is a no-op on the already-empty table that got us here.
+    node_access_rebuild();
+
+    if ((int) $this->grantStorage->count() === 0) {
+      // Did not finish. The marker is still set, so the guard keeps holding
+      // and the next tick retries once the tracker's staleness window lapses.
+      $this->logger->error('Automatic grants rebuild did not populate the table. Page caching stays suspended; will retry.');
+      return;
+    }
+
+    $this->state->delete(self::ATTEMPTS_KEY);
+    // Grants are back, so now the purge is both correct and necessary — it is
+    // what clears anything cached empty before the guard went up. Settling
+    // here rather than waiting for kernel.terminate means the site is serving
+    // correctly by the time cron returns.
+    $this->tracker->settle();
+    $this->logger->notice('Rebuilt node access grants automatically (@count records). Page caching resumed.', [
+      '@count' => $this->grantStorage->count(),
+    ]);
   }
 
   /**
