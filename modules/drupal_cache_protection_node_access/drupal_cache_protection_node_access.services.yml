@@ -1,0 +1,29 @@
+services:
+  logger.channel.drupal_cache_protection_node_access:
+    parent: logger.channel_base
+    arguments: ['drupal_cache_protection_node_access']
+
+  drupal_cache_protection_node_access.rebuild_tracker:
+    class: Drupal\drupal_cache_protection_node_access\RebuildTracker
+    arguments:
+      - '@state'
+      - '@cache_tags.invalidator'
+      - '@datetime.time'
+      - '@logger.channel.drupal_cache_protection_node_access'
+    tags:
+      - { name: needs_destruction }
+
+  drupal_cache_protection_node_access.grant_storage:
+    class: Drupal\drupal_cache_protection_node_access\NodeAccess\GrantStorageDecorator
+    decorates: node.grant_storage
+    arguments:
+      - '@drupal_cache_protection_node_access.grant_storage.inner'
+      - '@drupal_cache_protection_node_access.rebuild_tracker'
+
+  drupal_cache_protection_node_access.rebuild_guard:
+    class: Drupal\drupal_cache_protection_node_access\EventSubscriber\RebuildGuardSubscriber
+    arguments:
+      - '@drupal_cache_protection_node_access.rebuild_tracker'
+      - '@page_cache_kill_switch'
+    tags:
+      - { name: event_subscriber }

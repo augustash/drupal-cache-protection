@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * @file
+ * Install / uninstall / requirements hooks.
+ */
+
+declare(strict_types=1);
+
+use Drupal\drupal_cache_protection_node_access\RebuildTracker;
+
+/**
+ * Implements hook_uninstall().
+ */
+function drupal_cache_protection_node_access_uninstall(): void {
+  \Drupal::state()->delete(RebuildTracker::STATE_KEY);
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function drupal_cache_protection_node_access_requirements(string $phase): array {
+  if ($phase !== 'runtime') {
+    return [];
+  }
+
+  $requirements = [];
+  $startedAt = \Drupal::state()->get(RebuildTracker::STATE_KEY);
+
+  if ($startedAt === NULL) {
+    // Only worth reporting when the module has something to do. Grants are
+    // only consulted at all if some module implements hook_node_grants().
+    if (!\Drupal::moduleHandler()->hasImplementations('node_grants')) {
+      $requirements['drupal_cache_protection_node_access'] = [
+        'title' => t('Cache Protection: Node Access'),
+        'value' => t('Idle — no module implements hook_node_grants()'),
+        'description' => t('The node access grants table is not consulted on this site, so a grants rebuild cannot empty node listings. This submodule can safely be uninstalled.'),
+        'severity' => REQUIREMENT_INFO,
+      ];
+    }
+    return $requirements;
+  }
+
+  $elapsed = \Drupal::time()->getRequestTime() - (int) $startedAt;
+  $requirements['drupal_cache_protection_node_access'] = [
+    'title' => t('Cache Protection: Node Access'),
+    'value' => t('Grants rebuild in progress — page caching suppressed'),
+    'description' => t('A node access grants rebuild started @minutes minute(s) ago. Responses are not being cached until it finishes, so node listings cannot be stored while {node_access} is incomplete. If this persists, the rebuild was likely interrupted: re-run it with <code>drush php:eval "node_access_rebuild();"</code>.', [
+      '@minutes' => (int) floor($elapsed / 60),
+    ]),
+    'severity' => $elapsed > RebuildTracker::STALE_AFTER ? REQUIREMENT_ERROR : REQUIREMENT_WARNING,
+  ];
+
+  return $requirements;
+}

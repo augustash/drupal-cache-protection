@@ -1,0 +1,20 @@
+<?php
+
+/**
+ * @file
+ * Node access rebuild cache protection.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_cron().
+ *
+ * Last-resort settle. The response subscriber already catches a finished
+ * rebuild on the next request, but a site whose traffic is entirely served
+ * from the edge may not reach PHP for a while — cron guarantees the purge
+ * lands regardless.
+ */
+function drupal_cache_protection_node_access_cron(): void {
+  \Drupal::service('drupal_cache_protection_node_access.rebuild_tracker')->settle();
+}

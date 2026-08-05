@@ -1,0 +1,6 @@
+{
+  "name": "augustash/drupal_cache_protection_node_access",
+  "description": "Node access rebuild cache protection submodule for Cache Protection",
+  "type": "drupal-module",
+  "license": "proprietary"
+}

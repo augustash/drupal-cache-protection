@@ -1,0 +1,7 @@
+name: 'Cache Protection: Node Access'
+description: 'Stops a node access grants rebuild from poisoning the page cache with empty listings, and purges the render cache once the rebuild completes.'
+type: module
+core_version_requirement: ^10 || ^11
+dependencies:
+  - drupal:node
+  - drupal_cache_protection:drupal_cache_protection
