@@ -20,6 +20,16 @@ services:
       - '@drupal_cache_protection_node_access.grant_storage.inner'
       - '@drupal_cache_protection_node_access.rebuild_tracker'
 
+  drupal_cache_protection_node_access.grants_sanity_check:
+    class: Drupal\drupal_cache_protection_node_access\GrantsSanityCheck
+    arguments:
+      - '@node.grant_storage'
+      - '@entity_type.manager'
+      - '@module_handler'
+      - '@drupal_cache_protection_node_access.rebuild_tracker'
+      - '@cache_tags.invalidator'
+      - '@logger.channel.drupal_cache_protection_node_access'
+
   drupal_cache_protection_node_access.rebuild_guard:
     class: Drupal\drupal_cache_protection_node_access\EventSubscriber\RebuildGuardSubscriber
     arguments:

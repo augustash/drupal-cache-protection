@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Minimal node access module for tests.
+ */
+
+declare(strict_types=1);
+
+use Drupal\Core\Session\AccountInterface;
+
+/**
+ * Implements hook_node_grants().
+ *
+ * The body is irrelevant — what matters to the code under test is that
+ * hasImplementations('node_grants') returns TRUE, which is what makes core
+ * join {node_access} instead of short-circuiting.
+ */
+function dcpna_grants_test_node_grants(AccountInterface $account, $op) {
+  return [];
+}

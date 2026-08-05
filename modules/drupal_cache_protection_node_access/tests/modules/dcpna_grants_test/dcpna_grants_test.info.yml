@@ -1,0 +1,7 @@
+name: 'Cache Protection Node Access: grants test'
+description: 'Implements hook_node_grants() so tests can exercise a site where the grants table is actually consulted.'
+type: module
+core_version_requirement: ^10 || ^11
+package: Testing
+dependencies:
+  - drupal:node

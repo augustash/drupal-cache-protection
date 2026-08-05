@@ -10,11 +10,19 @@ declare(strict_types=1);
 /**
  * Implements hook_cron().
  *
- * Last-resort settle. The response subscriber already catches a finished
- * rebuild on the next request, but a site whose traffic is entirely served
- * from the edge may not reach PHP for a while — cron guarantees the purge
- * lands regardless.
+ * Two jobs, in this order.
+ *
+ * Settle is the last-resort close. The response subscriber already catches a
+ * finished rebuild on the next request, but a site whose traffic is entirely
+ * served from the edge may not reach PHP for a while — cron guarantees the
+ * purge lands regardless.
+ *
+ * The sanity check then looks for a grants table emptied by something the
+ * decorator never saw. It has to run second: settle() may legitimately clear a
+ * marker this tick, and the check needs to see that already-closed state
+ * rather than treat an in-flight rebuild as an anomaly.
  */
 function drupal_cache_protection_node_access_cron(): void {
   \Drupal::service('drupal_cache_protection_node_access.rebuild_tracker')->settle();
+  \Drupal::service('drupal_cache_protection_node_access.grants_sanity_check')->run();
 }

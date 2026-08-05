@@ -44,6 +44,8 @@ It reads as a content or search-index bug, not a caching one, because the listin
 - On completion, invalidates `rendered` once. That's the only tag that reaches a poisoned page: an empty listing carries no entity tags precisely because it rendered no entities.
 - An abandoned rebuild stops suppressing the cache after an hour and logs a warning; the status report flags it before that.
 
+A cron check covers grants emptied by something the decorator can't see — a hand-run `TRUNCATE node_access`, or a database import carrying a table that was empty when it was dumped (Pantheon's env clone makes that plausible). If `{node_access}` is empty while published nodes exist and a `hook_node_grants` module is active, that state is impossible: it logs an error, opens the guard so nothing further caches empty, and flags the rebuild for the status report. Turns "stuck until a human notices" into "self-heals within a cron cycle" — the rebuild itself still needs running by hand, deliberately, since an unattended rebuild on a large site is its own hazard.
+
 Nothing to configure.
 
 ## Enabling
