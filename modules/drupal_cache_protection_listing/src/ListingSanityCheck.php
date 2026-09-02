@@ -107,6 +107,17 @@ final class ListingSanityCheck implements DestructableInterface {
       return;
     }
 
+    // An empty page is not an empty list. getTotal() counts what the query
+    // matches with access applied and without the pager's range, so a positive
+    // total means the rows are both there and visible — this request simply
+    // asked for a page past the end of them, which any crawler walking ?page=N
+    // does routinely. Caught in production hours after release: /news-events
+    // ?page=25 reported 203 "hidden" items that were never hidden at all, and
+    // every such request was made uncacheable for its trouble.
+    if ($this->totalWithAccess($handler) > 0) {
+      return;
+    }
+
     $hidden = $this->countIgnoringAccess($handler);
     if ($hidden < 1) {
       // Nothing to show. The list is right and this is not our business.
@@ -122,11 +133,12 @@ final class ListingSanityCheck implements DestructableInterface {
     }
     $this->noteSeen($signature);
 
-    $this->logger->error('The "@list" list rendered no results on @route while @count matching item(s) exist — every one of them is invisible to this request. Caching is suppressed for this response and anything already cached for it is being purged. Filters: @filters. User: @user (roles: @roles).@grants', [
+    $this->logger->error('The "@list" list rendered no results on @route while @count matching item(s) exist — every one of them is invisible to this request. Caching is suppressed for this response and anything already cached for it is being purged. Filters: @filters. Page: @page. User: @user (roles: @roles).@grants', [
       '@list' => $entity_list->id(),
       '@route' => $this->describeRoute(),
       '@count' => $hidden,
       '@filters' => $this->describeFilters($handler),
+      '@page' => (int) $handler->getOption('page', 0),
       '@user' => $this->currentUser->id(),
       '@roles' => implode(', ', $this->currentUser->getRoles()),
       '@grants' => $this->describeGrants(),
@@ -157,6 +169,23 @@ final class ListingSanityCheck implements DestructableInterface {
     }
     $this->cacheTagsInvalidator->invalidateTags($this->purgeTags);
     $this->purgeTags = [];
+  }
+
+  /**
+   * Counts what the query matches with access applied, ignoring the pager.
+   *
+   * This is the list's own total, already computed during the render, so
+   * asking for it here is free.
+   */
+  protected function totalWithAccess(ExoListBuilderInterface $handler): int {
+    try {
+      return (int) $handler->getTotal();
+    }
+    catch (\Throwable) {
+      // Err towards saying nothing: a total we cannot read is not evidence of
+      // an anomaly.
+      return 1;
+    }
   }
 
   /**

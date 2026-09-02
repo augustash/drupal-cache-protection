@@ -119,6 +119,44 @@ class ListingSanityCheckTest extends KernelTestBase {
   }
 
   /**
+   * A pager page past the end of the results is not an anomaly.
+   *
+   * Found in production hours after release: a crawler walking ?page=N on a
+   * paginated list produced "203 matching items are invisible" on every hit,
+   * and made each of those responses uncacheable. The rows were visible the
+   * whole time — the request simply asked for page 25 of 21.
+   */
+  public function testPageBeyondTheLastIsNotAnAnomaly(): void {
+    for ($i = 0; $i < 3; $i++) {
+      $this->createPublishedNode();
+    }
+
+    $this->loadList(['page' => 25]);
+
+    $this->assertFalse(
+      $this->check()->isAnomalous(),
+      'An out-of-range pager page still caches normally.'
+    );
+    $this->assertSame([], $this->logRecords(), 'And says nothing.');
+  }
+
+  /**
+   * Hidden content is still caught on a page other than the first.
+   *
+   * The out-of-range guard must not become a blanket exemption for paginated
+   * lists — the incident this module exists for would hide inside one.
+   */
+  public function testHiddenContentIsCaughtOnLaterPage(): void {
+    $this->createPublishedNode();
+    $this->emptyGrantsTable();
+
+    $this->loadList(['page' => 2]);
+
+    $this->assertTrue($this->check()->isAnomalous());
+    $this->assertCount(1, $this->logRecords());
+  }
+
+  /**
    * Protection is unconditional; only the expensive half is rate limited.
    *
    * A persistent anomaly must keep every response uncacheable, while logging
@@ -188,9 +226,16 @@ class ListingSanityCheckTest extends KernelTestBase {
 
   /**
    * Runs the list through the seam the module hooks into.
+   *
+   * @param array $options
+   *   List options to apply first, e.g. ['page' => 25].
    */
-  protected function loadList(): void {
-    EntityList::load('dcpl_test_list')->getHandler()->load();
+  protected function loadList(array $options = []): void {
+    $handler = EntityList::load('dcpl_test_list')->getHandler();
+    foreach ($options as $key => $value) {
+      $handler->setOption($key, $value);
+    }
+    $handler->load();
   }
 
   /**

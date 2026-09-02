@@ -41,13 +41,30 @@ function drupal_cache_protection_listing_requirements(string $phase): array {
   }
 
   $latest = max(array_map('intval', $seen));
+  $now = \Drupal::time()->getRequestTime();
+  $formatted = \Drupal::service('date.formatter')->format($latest);
+
+  // Entries are pruned when the next detection is written, so with nothing
+  // further happening the count would sit at its high-water mark forever and
+  // read as ongoing. Anything past the cooldown is history: report it, but
+  // don't raise a warning about a problem that has stopped.
+  if (($now - $latest) > ListingSanityCheck::COOLDOWN) {
+    return [
+      'drupal_cache_protection_listing' => [
+        'title' => t('Cache Protection: Listing'),
+        'value' => t('No anomalies since @time', ['@time' => $formatted]),
+        'description' => t('An earlier empty listing was caught and kept out of the caches. Nothing has recurred since. See the drupal_cache_protection_listing log for the route, page and filters involved.'),
+        'severity' => REQUIREMENT_OK,
+      ],
+    ];
+  }
 
   return [
     'drupal_cache_protection_listing' => [
       'title' => t('Cache Protection: Listing'),
-      'value' => t('@count listing(s) rendered empty while content existed', ['@count' => count($seen)]),
-      'description' => t('Most recent: @time. Those responses were not cached and anything already cached for them was purged. See the drupal_cache_protection_listing log for the route and filters involved — that is what identifies the cause.', [
-        '@time' => \Drupal::service('date.formatter')->format($latest),
+      'value' => t('@count listing(s) rendering empty while content exists', ['@count' => count($seen)]),
+      'description' => t('Most recent: @time. Those responses are not being cached and anything already cached for them has been purged. See the drupal_cache_protection_listing log for the route, page and filters involved — that is what identifies the cause.', [
+        '@time' => $formatted,
       ]),
       'severity' => REQUIREMENT_WARNING,
     ],
