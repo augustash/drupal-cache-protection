@@ -1,0 +1,27 @@
+services:
+  logger.channel.drupal_cache_protection_listing:
+    parent: logger.channel_base
+    arguments: ['drupal_cache_protection_listing']
+
+  drupal_cache_protection_listing.sanity_check:
+    class: Drupal\drupal_cache_protection_listing\ListingSanityCheck
+    arguments:
+      - '@current_route_match'
+      - '@router.admin_context'
+      - '@state'
+      - '@cache_tags.invalidator'
+      - '@datetime.time'
+      - '@current_user'
+      - '@logger.channel.drupal_cache_protection_listing'
+      # Optional: only sites running node have a grants table to report on.
+      - '@?node.grant_storage'
+    tags:
+      - { name: needs_destruction }
+
+  drupal_cache_protection_listing.guard:
+    class: Drupal\drupal_cache_protection_listing\EventSubscriber\ListingGuardSubscriber
+    arguments:
+      - '@drupal_cache_protection_listing.sanity_check'
+      - '@page_cache_kill_switch'
+    tags:
+      - { name: event_subscriber }

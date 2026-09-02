@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * @file
+ * Install / uninstall / requirements hooks.
+ */
+
+declare(strict_types=1);
+
+use Drupal\drupal_cache_protection_listing\ListingSanityCheck;
+
+/**
+ * Implements hook_uninstall().
+ */
+function drupal_cache_protection_listing_uninstall(): void {
+  \Drupal::state()->delete(ListingSanityCheck::COOLDOWN_KEY);
+}
+
+/**
+ * Implements hook_requirements().
+ *
+ * Silence means healthy, which is hard to distinguish from "not working". The
+ * status report is where someone looks after a report of missing content, so
+ * say plainly whether anything has been caught recently and where to read the
+ * detail.
+ */
+function drupal_cache_protection_listing_requirements(string $phase): array {
+  if ($phase !== 'runtime') {
+    return [];
+  }
+
+  $seen = \Drupal::state()->get(ListingSanityCheck::COOLDOWN_KEY, []);
+  if (empty($seen)) {
+    return [
+      'drupal_cache_protection_listing' => [
+        'title' => t('Cache Protection: Listing'),
+        'value' => t('No empty-listing anomalies detected'),
+        'severity' => REQUIREMENT_OK,
+      ],
+    ];
+  }
+
+  $latest = max(array_map('intval', $seen));
+
+  return [
+    'drupal_cache_protection_listing' => [
+      'title' => t('Cache Protection: Listing'),
+      'value' => t('@count listing(s) rendered empty while content existed', ['@count' => count($seen)]),
+      'description' => t('Most recent: @time. Those responses were not cached and anything already cached for them was purged. See the drupal_cache_protection_listing log for the route and filters involved — that is what identifies the cause.', [
+        '@time' => \Drupal::service('date.formatter')->format($latest),
+      ]),
+      'severity' => REQUIREMENT_WARNING,
+    ],
+  ];
+}

@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * @file
+ * Entity list cache protection.
+ */
+
+declare(strict_types=1);
+
+use Drupal\exo_list_builder\EntityListInterface;
+
+/**
+ * Implements hook_exo_list_builder_entities_alter().
+ *
+ * ExoListBuilderBase::load() dispatches this with the entities it just loaded,
+ * which is the earliest point an empty result is knowable and still early
+ * enough to keep the response out of the caches that would freeze it.
+ */
+function drupal_cache_protection_listing_exo_list_builder_entities_alter(array &$entities, EntityListInterface $entity_list): void {
+  \Drupal::service('drupal_cache_protection_listing.sanity_check')->check($entities, $entity_list);
+}

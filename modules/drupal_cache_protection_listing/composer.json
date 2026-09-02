@@ -1,0 +1,6 @@
+{
+  "name": "augustash/drupal_cache_protection_listing",
+  "description": "Entity list cache protection submodule for Cache Protection",
+  "type": "drupal-module",
+  "license": "proprietary"
+}

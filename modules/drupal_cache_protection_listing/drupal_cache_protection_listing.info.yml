@@ -1,0 +1,7 @@
+name: 'Cache Protection: Listing'
+description: 'Stops an entity list that renders empty while matching content exists from being cached, and drops what was already stored.'
+type: module
+core_version_requirement: ^10 || ^11
+dependencies:
+  - drupal_cache_protection:drupal_cache_protection
+  - exo_list_builder:exo_list_builder
