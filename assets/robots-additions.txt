@@ -11,6 +11,17 @@ Disallow: /*/views/ajax
 # search indexed can override with an Allow rule.
 Disallow: /search
 
+# Block Commerce cart and checkout from crawling. Checkout URLs carry an order
+# ID and are access-checked against the visitor's session, so a crawler only
+# ever collects 403s — observed as ~10k Googlebot 403s in three weeks on
+# /checkout/{order}/{step} (sisal, Sep 2026). The cart is per-visitor state with
+# nothing to index. /cart is anchored rather than prefix-matched so paths that
+# merely begin with "cart" (a /cartography page, a carton product) stay crawlable.
+Disallow: /checkout/
+Disallow: /cart$
+Disallow: /cart?
+Disallow: /cart/
+
 # Block faceted search URLs from crawling. Each unique facet combination is a
 # distinct URL that bots can multiply to fragment the cache.
 Disallow: /*?*f[0]=
