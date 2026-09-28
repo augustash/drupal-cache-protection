@@ -58,6 +58,14 @@ class FacetSettingsForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
+    $form['extra_aliases'] = [
+      '#type' => 'textarea',
+      '#title' => $this->t('Additional allowed aliases'),
+      '#description' => $this->t('One per line. Facet (f[]) aliases the site writes itself that no facet owns, such as a list toggle. Aliases of real facets are allowed automatically; anything else gets a 400.'),
+      '#default_value' => implode("\n", $config->get('extra_aliases') ?? []),
+      '#rows' => 3,
+    ];
+
     return parent::buildForm($form, $form_state);
   }
 
@@ -69,6 +77,7 @@ class FacetSettingsForm extends ConfigFormBase {
       ->set('max_facets', (int) $form_state->getValue('max_facets'))
       ->set('rate_limit', (int) $form_state->getValue('rate_limit'))
       ->set('rate_window', (int) $form_state->getValue('rate_window'))
+      ->set('extra_aliases', array_values(array_filter(array_map('trim', explode("\n", (string) $form_state->getValue('extra_aliases'))))))
       ->save();
 
     parent::submitForm($form, $form_state);

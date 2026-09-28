@@ -99,6 +99,25 @@ class FacetThrottleMiddlewareTest extends KernelTestBase {
   }
 
   /**
+   * Tests that a site-declared alias passes and an undeclared one still fails.
+   */
+  public function testExtraAliasAllowed(): void {
+    $this->config('drupal_cache_protection_facets.settings')
+      ->set('extra_aliases', ['show'])
+      ->save();
+
+    $request = Request::create('/staff-directory', 'GET', [
+      'f' => ['show:discontinued', 'departments:15'],
+    ]);
+    $this->assertEquals(200, $this->middleware->handle($request)->getStatusCode());
+
+    $request = Request::create('/staff-directory', 'GET', [
+      'f' => ['hide:discontinued'],
+    ]);
+    $this->assertEquals(400, $this->middleware->handle($request)->getStatusCode());
+  }
+
+  /**
    * Tests that rate limiting kicks in after threshold.
    */
   public function testRateLimitExceeded(): void {

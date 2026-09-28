@@ -60,6 +60,10 @@ class FacetThrottleMiddleware implements HttpKernelInterface {
     // Reject requests with invalid facet aliases.
     $validAliases = $this->getValidAliases();
     if ($validAliases !== NULL) {
+      // Site-declared pseudo-facets: parameters a site writes into f[] itself
+      // (a list toggle, say) that no Facets facet owns. Merged here rather than
+      // into the cached set, so a settings change applies at once.
+      $validAliases += array_fill_keys($config['extra_aliases'] ?? [], TRUE);
       foreach ($facets as $facet) {
         $alias = strstr($facet, ':', TRUE);
         if ($alias === FALSE || !isset($validAliases[$alias])) {

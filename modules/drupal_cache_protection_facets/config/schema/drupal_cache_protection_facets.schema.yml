@@ -11,3 +11,9 @@ drupal_cache_protection_facets.settings:
     rate_window:
       type: integer
       label: 'Rate limit window in seconds'
+    extra_aliases:
+      type: sequence
+      label: 'Additional allowed aliases'
+      sequence:
+        type: string
+        label: 'Alias'
