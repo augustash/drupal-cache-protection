@@ -118,6 +118,74 @@ class FacetThrottleMiddlewareTest extends KernelTestBase {
   }
 
   /**
+   * Tests that a value given twice is rejected, however few filters there are.
+   */
+  public function testDuplicateValueBlocked(): void {
+    $request = Request::create('/staff-directory', 'GET', [
+      'f' => ['departments:15', 'departments:15'],
+    ]);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(400, $response->getStatusCode());
+    $this->assertEquals('Invalid filter.', $response->getContent());
+
+    // The same alias with different values is an ordinary OR selection.
+    $request = Request::create('/staff-directory', 'GET', [
+      'f' => ['departments:15', 'departments:16'],
+    ]);
+    $this->assertEquals(200, $this->middleware->handle($request)->getStatusCode());
+  }
+
+  /**
+   * Tests the site-wide budget for deep combinations.
+   *
+   * Each request comes from a different IP, as the crawler's do, so only the
+   * shared budget can stop them.
+   */
+  public function testDeepRequestsShareOneBudget(): void {
+    $this->config('drupal_cache_protection_facets.settings')
+      ->set('max_facets', 15)
+      ->set('deep_threshold', 3)
+      ->set('deep_rate_limit', 2)
+      ->set('extra_aliases', ['show'])
+      ->save();
+    $deep = ['departments:1', 'departments:2', 'locations:3', 'category:4'];
+    $request = fn (array $facets, int $ip) => Request::create('/staff-directory', 'GET', ['f' => $facets], [], [], ['REMOTE_ADDR' => "10.0.0.$ip"]);
+
+    $this->assertEquals(200, $this->middleware->handle($request($deep, 1))->getStatusCode());
+    $this->assertEquals(200, $this->middleware->handle($request($deep, 2))->getStatusCode());
+    $response = $this->middleware->handle($request($deep, 3));
+    $this->assertEquals(429, $response->getStatusCode());
+    $this->assertEquals('Too many filters.', $response->getContent());
+
+    // A shopper at or under the threshold never touches the budget, and a
+    // site-declared toggle does not count toward depth.
+    $shallow = ['departments:1', 'locations:3', 'category:4'];
+    $this->assertEquals(200, $this->middleware->handle($request($shallow, 4))->getStatusCode());
+    $toggled = array_merge(['show:discontinued'], $shallow);
+    $this->assertEquals(200, $this->middleware->handle($request($toggled, 5))->getStatusCode());
+  }
+
+  /**
+   * Tests that the deep budget is off unless a site sets a threshold.
+   */
+  public function testDeepBudgetOffByDefault(): void {
+    $this->config('drupal_cache_protection_facets.settings')->set('max_facets', 15)->save();
+    $deep = [
+      'departments:1',
+      'departments:2',
+      'locations:3',
+      'category:4',
+      'category:5',
+      'category:6',
+      'category:7',
+    ];
+    for ($ip = 1; $ip <= 10; $ip++) {
+      $request = Request::create('/staff-directory', 'GET', ['f' => $deep], [], [], ['REMOTE_ADDR' => "10.0.0.$ip"]);
+      $this->assertEquals(200, $this->middleware->handle($request)->getStatusCode());
+    }
+  }
+
+  /**
    * Tests that rate limiting kicks in after threshold.
    */
   public function testRateLimitExceeded(): void {

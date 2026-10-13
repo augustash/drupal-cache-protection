@@ -2,3 +2,5 @@ max_facets: 6
 rate_limit: 30
 rate_window: 60
 extra_aliases: []
+deep_threshold: 0
+deep_rate_limit: 6

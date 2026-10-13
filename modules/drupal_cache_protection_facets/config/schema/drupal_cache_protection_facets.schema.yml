@@ -17,3 +17,9 @@ drupal_cache_protection_facets.settings:
       sequence:
         type: string
         label: 'Alias'
+    deep_threshold:
+      type: integer
+      label: 'Filters beyond which a request counts against the site-wide budget (0 disables)'
+    deep_rate_limit:
+      type: integer
+      label: 'Deep faceted requests allowed site-wide within the window'

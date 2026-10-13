@@ -57,13 +57,26 @@ class FacetThrottleMiddleware implements HttpKernelInterface {
       ]);
     }
 
+    // Reject a value given twice. Facets never writes one — selecting an
+    // active value removes it — so a repeat only comes from a crawler padding
+    // its URL into a combination nothing caches. Rejected rather than
+    // redirected: the de-duplicated URL is just as uncached, so a 301 would
+    // still cost a render.
+    if (count(array_unique($facets)) !== count($facets)) {
+      return new Response('Invalid filter.', 400, [
+        'Cache-Control' => 'no-store',
+      ]);
+    }
+
+    $extraAliases = $config['extra_aliases'] ?? [];
+
     // Reject requests with invalid facet aliases.
     $validAliases = $this->getValidAliases();
     if ($validAliases !== NULL) {
       // Site-declared pseudo-facets: parameters a site writes into f[] itself
       // (a list toggle, say) that no Facets facet owns. Merged here rather than
       // into the cached set, so a settings change applies at once.
-      $validAliases += array_fill_keys($config['extra_aliases'] ?? [], TRUE);
+      $validAliases += array_fill_keys($extraAliases, TRUE);
       foreach ($facets as $facet) {
         $alias = strstr($facet, ':', TRUE);
         if ($alias === FALSE || !isset($validAliases[$alias])) {
@@ -74,14 +87,40 @@ class FacetThrottleMiddleware implements HttpKernelInterface {
       }
     }
 
-    // Rate limit faceted requests per IP.
     $rateLimit = $config['rate_limit'] ?? 30;
     $rateWindow = $config['rate_window'] ?? 60;
-    $ip = $request->getClientIp();
-    $cacheKey = 'facet_throttle:' . hash('xxh3', $ip);
 
     try {
       $cache = \Drupal::cache('default');
+
+      // A site-wide budget for deep combinations. The number of combinations
+      // grows exponentially with depth, so a crawler walking a filter shelf's
+      // links finds an endless supply of URLs nothing has cached. Spread over
+      // thousands of residential IPs, it never trips the per-IP limit below.
+      // Shoppers rarely go this deep, so the budget only ever bites a crawl.
+      // Site-declared aliases are toggles rather than filters, so they don't
+      // count toward depth.
+      $deepThreshold = (int) ($config['deep_threshold'] ?? 0);
+      if ($deepThreshold > 0) {
+        $depth = count(array_filter($facets, static fn ($facet) => !in_array(strstr($facet, ':', TRUE), $extraAliases, TRUE)));
+        if ($depth > $deepThreshold) {
+          $deepKey = 'facet_throttle:deep';
+          $deepEntry = $cache->get($deepKey);
+          $deepCount = $deepEntry ? (int) $deepEntry->data : 0;
+          if ($deepCount >= (int) ($config['deep_rate_limit'] ?? 6)) {
+            return new Response('Too many filters.', 429, [
+              'Cache-Control' => 'no-store',
+              'Retry-After' => (string) $rateWindow,
+            ]);
+          }
+          // The window starts at the first deep request and is not extended,
+          // so the budget refills on a fixed cadence.
+          $cache->set($deepKey, $deepCount + 1, $deepEntry ? $deepEntry->expire : time() + $rateWindow);
+        }
+      }
+
+      // Rate limit faceted requests per IP.
+      $cacheKey = 'facet_throttle:' . hash('xxh3', $request->getClientIp());
       $entry = $cache->get($cacheKey);
       $count = $entry ? (int) $entry->data : 0;
 

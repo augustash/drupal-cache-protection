@@ -58,6 +58,24 @@ class FacetSettingsForm extends ConfigFormBase {
       '#required' => TRUE,
     ];
 
+    $form['deep_threshold'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Deep filter threshold'),
+      '#description' => $this->t('Requests with more facet (f[]) values than this share one site-wide budget, which stops a crawler spread across many IPs from walking every combination. Additional allowed aliases do not count. 0 disables it.'),
+      '#default_value' => $config->get('deep_threshold') ?? 0,
+      '#min' => 0,
+      '#required' => TRUE,
+    ];
+
+    $form['deep_rate_limit'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Deep request budget'),
+      '#description' => $this->t('Deep requests allowed site-wide within the rate window, from all visitors together.'),
+      '#default_value' => $config->get('deep_rate_limit') ?? 6,
+      '#min' => 1,
+      '#required' => TRUE,
+    ];
+
     $form['extra_aliases'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Additional allowed aliases'),
@@ -77,6 +95,8 @@ class FacetSettingsForm extends ConfigFormBase {
       ->set('max_facets', (int) $form_state->getValue('max_facets'))
       ->set('rate_limit', (int) $form_state->getValue('rate_limit'))
       ->set('rate_window', (int) $form_state->getValue('rate_window'))
+      ->set('deep_threshold', (int) $form_state->getValue('deep_threshold'))
+      ->set('deep_rate_limit', (int) $form_state->getValue('deep_rate_limit'))
       ->set('extra_aliases', array_values(array_filter(array_map('trim', explode("\n", (string) $form_state->getValue('extra_aliases'))))))
       ->save();
 
