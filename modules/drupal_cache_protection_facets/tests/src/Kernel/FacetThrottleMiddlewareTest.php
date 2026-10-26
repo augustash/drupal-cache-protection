@@ -73,6 +73,35 @@ class FacetThrottleMiddlewareTest extends KernelTestBase {
   }
 
   /**
+   * Tests that an empty scalar filter passes through.
+   */
+  public function testEmptyScalarFilterPassesThrough(): void {
+    $request = Request::create('/staff-directory', 'GET', ['f' => '']);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(200, $response->getStatusCode());
+  }
+
+  /**
+   * Tests that a scalar filter returns 400 rather than throwing.
+   */
+  public function testScalarFilterBlocked(): void {
+    $request = Request::create('/staff-directory', 'GET', ['f' => 'departments:15']);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(400, $response->getStatusCode());
+  }
+
+  /**
+   * Tests that a nested filter returns 400 rather than throwing.
+   */
+  public function testNestedFilterBlocked(): void {
+    $request = Request::create('/staff-directory', 'GET', [
+      'f' => [['departments:15']],
+    ]);
+    $response = $this->middleware->handle($request);
+    $this->assertEquals(400, $response->getStatusCode());
+  }
+
+  /**
    * Tests that too many facets returns 429.
    */
   public function testTooManyFacetsBlocked(): void {

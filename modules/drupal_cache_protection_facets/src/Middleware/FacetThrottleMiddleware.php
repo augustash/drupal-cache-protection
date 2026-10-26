@@ -41,9 +41,19 @@ class FacetThrottleMiddleware implements HttpKernelInterface {
       return $this->httpKernel->handle($request, $type, $catch);
     }
 
-    $facets = $request->query->all('f');
-    if (empty($facets)) {
+    // Read the raw value: ParameterBag::all('f') throws when f isn't an array,
+    // so a hand-made ?f=abc would surface as a 500 instead of a 400.
+    $facets = $request->query->all()['f'] ?? NULL;
+    if ($facets === NULL || $facets === '' || $facets === []) {
       return $this->httpKernel->handle($request, $type, $catch);
+    }
+
+    // Facets only ever writes a flat list of 'alias:value' strings. A scalar
+    // or nested value is hand-made, so reject it like any other bad filter.
+    if (!is_array($facets) || array_filter($facets, static fn ($facet) => !is_string($facet))) {
+      return new Response('Invalid filter.', 400, [
+        'Cache-Control' => 'no-store',
+      ]);
     }
 
     $config = $this->getConfig();
